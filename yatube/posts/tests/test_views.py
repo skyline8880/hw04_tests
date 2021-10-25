@@ -59,7 +59,9 @@ class PostPagesTests(TestCase):
                     )
                     self.assertTemplateUsed(response, template)
                 else:
-                    response = self.authorized_client.get(reverse(reverse_name))
+                    response = self.authorized_client.get(
+                        reverse(reverse_name)
+                    )
                     self.assertTemplateUsed(response, template)
 
     def test_index_page_show_correct_context(self):
