@@ -29,27 +29,38 @@ class PostPagesTests(TestCase):
 
     def test_pages_uses_correct_template(self):
         templates_pages_names = {
-            'posts/index.html': reverse('posts:index'),
-            'posts/group_list.html': (
-                reverse('posts:group_list', kwargs={'slug': 'tesg'})
-            ),
-            'posts/profile.html': (
-                reverse('posts:profile', kwargs={'username': 'Albus'})
-            ),
-            'posts/post_detail.html': (
-                reverse('posts:post_detail', kwargs={'post_id': '1'})
-            ),
-            'posts/create_post.html': (
-                reverse('posts:post_edit', kwargs={'post_id': '1'})
-            ),
-            'posts/create_post.html': (
-                reverse('posts:post_create')
-            ),
+            'posts:index': 'posts/index.html',
+            'posts:group_list': 'posts/group_list.html',
+            'posts:profile': 'posts/profile.html',
+            'posts:post_detail': 'posts/post_detail.html',
+            'posts:post_create': 'posts/create_post.html',
+            'posts:post_edit': 'posts/create_post.html',
         }
-        for template, reverse_name in templates_pages_names.items():
+        for reverse_name, template in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name):
-                response = self.authorized_client.get(reverse_name)
-                self.assertTemplateUsed(response, template)
+                if reverse_name == 'posts:group_list':
+                    response = self.authorized_client.get(
+                        reverse(reverse_name, kwargs={'slug': 'tesg'})
+                    )
+                    self.assertTemplateUsed(response, template)
+                elif reverse_name == 'posts:profile':
+                    response = self.authorized_client.get(
+                        reverse(reverse_name, kwargs={'username': 'Albus'})
+                    )
+                    self.assertTemplateUsed(response, template)
+                elif reverse_name == 'posts:post_detail':
+                    response = self.authorized_client.get(
+                        reverse(reverse_name, kwargs={'post_id': '1'})
+                    )
+                    self.assertTemplateUsed(response, template)
+                elif reverse_name == 'posts:post_edit':
+                    response = self.authorized_client.get(
+                        reverse(reverse_name, kwargs={'post_id': '1'})
+                    )
+                    self.assertTemplateUsed(response, template)
+                else:
+                    response = self.authorized_client.get(reverse(reverse_name))
+                    self.assertTemplateUsed(response, template)
 
     def test_index_page_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:index'))
