@@ -13,10 +13,11 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='TestUser')
-        Post.objects.create(
-            author=cls.user,
-            text='Текст',
-        )
+        while Post.objects.count() < 15:
+            Post.objects.create(
+                author=cls.user,
+                text='Текст',
+            )
         Group.objects.create(
             title='Заголовок',
             slug='tesg',
@@ -33,11 +34,11 @@ class PostPagesTests(TestCase):
             'posts:group_list': 'posts/group_list.html',
             'posts:profile': 'posts/profile.html',
             'posts:post_detail': 'posts/post_detail.html',
-            'posts:post_create': 'posts/create_post.html',
             'posts:post_edit': 'posts/create_post.html',
+            'posts:post_create': 'posts/create_post.html',
         }
         for reverse_name, template in templates_pages_names.items():
-            with self.subTest(reverse_name=reverse_name):
+            with self.subTest(reverse_name=reverse_name, template=template):
                 if reverse_name == 'posts:group_list':
                     response = self.authorized_client.get(
                         reverse(reverse_name, kwargs={'slug': 'tesg'})
@@ -54,10 +55,11 @@ class PostPagesTests(TestCase):
                     )
                     self.assertTemplateUsed(response, template)
                 elif reverse_name == 'posts:post_edit':
-                    response = self.authorized_client.get(
-                        reverse(reverse_name, kwargs={'post_id': '1'})
-                    )
-                    self.assertTemplateUsed(response, template)
+                    if self.authorized_client == self.user.username:
+                        response = self.authorized_client.get(
+                            reverse(reverse_name, kwargs={'post_id': '1'})
+                        )
+                        self.assertTemplateUsed(response, template)
                 else:
                     response = self.authorized_client.get(
                         reverse(reverse_name)
@@ -90,7 +92,25 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': '1'})
         )
-        self.assertEqual(response.context['post'].pk, Post.objects.get().pk)
         self.assertEqual(
-            response.context['count_posts'], Post.objects.all().count()
+            response.context['post'].pk, Post.objects.get(pk=1).pk
         )
+        self.assertEqual(
+            response.context['count_posts'], Post.objects.count()
+        )
+
+    def test_first_page_paginator_index(self):
+        response = self.client.get(reverse('posts:index'))
+        self.assertEqual(len(response.context['page_obj']), 10)
+
+    def test_second_page_paginator_index(self):
+        response = self.client.get(reverse('posts:index') + '?page=2')
+        self.assertEqual(len(response.context['page_obj']), 5)
+
+    def test_first_page_paginator_index(self):
+        response = self.client.get(reverse('posts:index'))
+        self.assertEqual(len(response.context['page_obj']), 10)
+
+    def test_second_page_paginator_index(self):
+        response = self.client.get(reverse('posts:index') + '?page=2')
+        self.assertEqual(len(response.context['page_obj']), 5)
