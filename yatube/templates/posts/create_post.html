@@ -28,10 +28,10 @@
             {% endfor %}
           {% endif %}
           {% if is_edit %}
-            <form method="post"
+            <form method="post" enctype="multipart/form-data"
               action="{% url 'posts:post_edit' post.pk %}">
           {% else %}
-            <form method="post"
+            <form method="post" enctype="multipart/form-data"
               action="{% url 'posts:post_create' %}">
           {% endif %}
             {% csrf_token %}

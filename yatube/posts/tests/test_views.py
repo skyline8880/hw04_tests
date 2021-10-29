@@ -1,9 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.shortcuts import get_object_or_404
 
-from ..models import Post, Group
+from ..models import Group, Post
 
 User = get_user_model()
 
@@ -12,105 +11,110 @@ class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user = User.objects.create_user(username='TestUser')
-        while Post.objects.count() < 15:
-            Post.objects.create(
-                author=cls.user,
-                text='Текст',
-            )
-        Group.objects.create(
+        cls.user = User.objects.create_user(username='Albus')
+        cls.group = Group.objects.create(
             title='Заголовок',
             slug='tesg',
         )
+        for i in range(15):
+            Post.objects.bulk_create(
+                [
+                    Post(author=cls.user, group=cls.group, text='Test %s' %i)
+                ]
+            )
 
     def setUp(self):
-        self.user = User.objects.create_user(username='Albus')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
     def test_pages_uses_correct_template(self):
         templates_pages_names = {
-            'posts:index': 'posts/index.html',
-            'posts:group_list': 'posts/group_list.html',
-            'posts:profile': 'posts/profile.html',
-            'posts:post_detail': 'posts/post_detail.html',
-            'posts:post_edit': 'posts/create_post.html',
-            'posts:post_create': 'posts/create_post.html',
+            'posts:index': [
+                'posts/index.html', None
+            ],
+            'posts:group_list': [
+                'posts/group_list.html', {"slug": self.group.slug}
+            ],
+            'posts:profile': [
+                'posts/profile.html', {"username": self.user}
+            ],
+            'posts:post_detail': [
+                'posts/post_detail.html', {"post_id": 1}
+            ],
+            'posts:post_edit': [
+                'posts/create_post.html', {"post_id": 1}
+            ],
+            'posts:post_create': [
+                'posts/create_post.html', None
+            ]
         }
         for reverse_name, template in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name, template=template):
-                if reverse_name == 'posts:group_list':
-                    response = self.authorized_client.get(
-                        reverse(reverse_name, kwargs={'slug': 'tesg'})
-                    )
-                    self.assertTemplateUsed(response, template)
-                elif reverse_name == 'posts:profile':
-                    response = self.authorized_client.get(
-                        reverse(reverse_name, kwargs={'username': 'Albus'})
-                    )
-                    self.assertTemplateUsed(response, template)
-                elif reverse_name == 'posts:post_detail':
-                    response = self.authorized_client.get(
-                        reverse(reverse_name, kwargs={'post_id': '1'})
-                    )
-                    self.assertTemplateUsed(response, template)
-                elif reverse_name == 'posts:post_edit':
-                    if self.authorized_client == self.user.username:
-                        response = self.authorized_client.get(
-                            reverse(reverse_name, kwargs={'post_id': '1'})
-                        )
-                        self.assertTemplateUsed(response, template)
-                else:
-                    response = self.authorized_client.get(
-                        reverse(reverse_name)
-                    )
-                    self.assertTemplateUsed(response, template)
+                response = self.authorized_client.get(
+                    reverse(reverse_name, kwargs=template[1])
+                )
+                self.assertTemplateUsed(response, template[0])
 
     def test_index_page_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:index'))
         self.assertEqual(
-            response.context['page_obj'][0], Post.objects.all()[0]
+            response.context['page_obj'][0], Post.objects.first()
         )
 
     def test_group_list_page_show_correct_context(self):
         response = self.authorized_client.get(
-            reverse('posts:group_list', kwargs={'slug': 'tesg'})
+            reverse('posts:group_list', kwargs={'slug': self.group.slug})
         )
-        group = get_object_or_404(Group, slug='tesg')
-        self.assertEqual(response.context['group'], group)
+        self.assertEqual(response.context['group'], self.group)
+        self.assertEqual(
+            response.context['post'][0], self.group.posts.first()
+        )
+        self.assertEqual(
+            response.context['page_obj'][0], self.group.posts.first()
+        )
+
+    def test_none_group_and_side_group_correct_context(self):
+        gr2 = Group.objects.create(
+            title='Заголовок2',
+            slug='te02'
+        )
+        Post.objects.bulk_create(
+            [
+            Post(author=self.user, group=gr2, text='Test group assighnment'),
+            Post(author=self.user, text='Test group exempt')
+        ]
+        )
+        response = self.authorized_client.get(
+            reverse('posts:group_list', kwargs={'slug': gr2.slug})
+        )
+        self.assertEqual(response.context['group'], gr2)
+        self.assertEqual(response.context['post'][0], gr2.posts.first())
+        self.assertEqual(response.context['page_obj'][0], gr2.posts.first())
+        self.assertEqual(len(response.context['page_obj']), 1)
 
     def test_profile_page_show_correct_context(self):
         response = self.authorized_client.get(
-            reverse('posts:profile', kwargs={'username': 'Albus'})
+            reverse('posts:profile', kwargs={'username': self.user})
         )
         self.assertEqual(response.context['author'], self.user)
         self.assertEqual(
             response.context['count_posts'], self.user.posts.count()
         )
-
-    def test_post_id_page_show_correct_context(self):
-        response = self.authorized_client.get(
-            reverse('posts:post_detail', kwargs={'post_id': '1'})
-        )
         self.assertEqual(
-            response.context['post'].pk, Post.objects.get(pk=1).pk
-        )
-        self.assertEqual(
-            response.context['count_posts'], Post.objects.count()
+            response.context['page_obj'][0], self.user.posts.first()
         )
 
-    def test_first_page_paginator_index(self):
-        response = self.client.get(reverse('posts:index'))
-        self.assertEqual(len(response.context['page_obj']), 10)
-
-    def test_second_page_paginator_index(self):
-        response = self.client.get(reverse('posts:index') + '?page=2')
-        self.assertEqual(len(response.context['page_obj']), 5)
-
-    def test_first_page_paginator_index(self):
-        response = self.client.get(reverse('posts:index'))
-        self.assertEqual(len(response.context['page_obj']), 10)
-
-    def test_second_page_paginator_index(self):
-        response = self.client.get(reverse('posts:index') + '?page=2')
-        self.assertEqual(len(response.context['page_obj']), 5)
+    def test_paginator_index_group_list_profile(self):
+        reverse_name = {
+            'posts:index': None,
+            'posts:group_list': {"slug": self.group.slug},
+            'posts:profile': {"username": self.user}
+        }
+        for name, params in reverse_name.items():
+            with self.subTest(name=name, params=params):
+                response = self.client.get(reverse(name, kwargs=params))
+                self.assertEqual(len(response.context['page_obj']), 10)
+                response = self.client.get(
+                    reverse(name, kwargs=params) + '?page=2'
+                )
+                self.assertEqual(len(response.context['page_obj']), 5)
