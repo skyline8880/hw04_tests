@@ -19,7 +19,7 @@ class PostPagesTests(TestCase):
         for i in range(15):
             Post.objects.bulk_create(
                 [
-                    Post(author=cls.user, group=cls.group, text='Test %s' %i)
+                    Post(author=cls.user, group=cls.group, text='Test %s' % i)
                 ]
             )
 
@@ -80,9 +80,16 @@ class PostPagesTests(TestCase):
         )
         Post.objects.bulk_create(
             [
-            Post(author=self.user, group=gr2, text='Test group assighnment'),
-            Post(author=self.user, text='Test group exempt')
-        ]
+                Post(
+                    author=self.user,
+                    group=gr2,
+                    text='Test group assighnment'
+                ),
+                Post(
+                    author=self.user,
+                    text='Test group exempt'
+                )
+            ]
         )
         response = self.authorized_client.get(
             reverse('posts:group_list', kwargs={'slug': gr2.slug})
