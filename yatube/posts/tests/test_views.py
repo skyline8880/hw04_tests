@@ -16,12 +16,12 @@ class PostPagesTests(TestCase):
             title='Заголовок',
             slug='tesg',
         )
+        post_list = []
         for i in range(15):
-            Post.objects.bulk_create(
-                [
-                    Post(author=cls.user, group=cls.group, text='Test %s' % i)
-                ]
+            post_list.append(
+                Post(author=cls.user, group=cls.group, text=f'Test {i}')
             )
+        Post.objects.bulk_create(post_list)
 
     def setUp(self):
         self.authorized_client = Client()
@@ -39,10 +39,10 @@ class PostPagesTests(TestCase):
                 'posts/profile.html', {"username": self.user}
             ],
             'posts:post_detail': [
-                'posts/post_detail.html', {"post_id": 1}
+                'posts/post_detail.html', {"post_id": Post.objects.first().pk}
             ],
             'posts:post_edit': [
-                'posts/create_post.html', {"post_id": 1}
+                'posts/create_post.html', {"post_id": Post.objects.first().pk}
             ],
             'posts:post_create': [
                 'posts/create_post.html', None
@@ -66,9 +66,6 @@ class PostPagesTests(TestCase):
             reverse('posts:group_list', kwargs={'slug': self.group.slug})
         )
         self.assertEqual(response.context['group'], self.group)
-        self.assertEqual(
-            response.context['post'][0], self.group.posts.first()
-        )
         self.assertEqual(
             response.context['page_obj'][0], self.group.posts.first()
         )
@@ -95,7 +92,6 @@ class PostPagesTests(TestCase):
             reverse('posts:group_list', kwargs={'slug': gr2.slug})
         )
         self.assertEqual(response.context['group'], gr2)
-        self.assertEqual(response.context['post'][0], gr2.posts.first())
         self.assertEqual(response.context['page_obj'][0], gr2.posts.first())
         self.assertEqual(len(response.context['page_obj']), 1)
 

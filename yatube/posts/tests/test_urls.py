@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+
 from ..models import Group, Post
 
 User = get_user_model()
@@ -10,11 +11,11 @@ class StaticURLTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='Albus')
-        Post.objects.create(
+        cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый текст',
         )
-        Group.objects.create(
+        cls.group = Group.objects.create(
             title='Тестовый заголовок',
             slug='tesg',
         )
@@ -27,10 +28,10 @@ class StaticURLTests(TestCase):
     def auth_user_url_correct_status(self):
         url_adress_status = {
             '/': 200,
-            '/group/tesg/': 200,
-            '/profile/Albus/': 200,
-            '/posts/1/': 200,
-            '/posts/1/edit/': 200,
+            f'/group/{self.group.slug}/': 200,
+            f'/profile/{self.user.username}/': 200,
+            f'/posts/{self.post.pk}/': 200,
+            f'/posts/{self.post.pk}/edit/': 200,
             '/create/': 200,
             '/unexisting_page/': 404,
         }
@@ -42,10 +43,10 @@ class StaticURLTests(TestCase):
     def guest_user_url_correct_status(self):
         url_adress_status = {
             '/': 200,
-            '/group/tesg/': 200,
-            '/profile/Albus/': 200,
-            '/posts/1/': 200,
-            '/posts/1/edit/': 302,
+            f'/group/{self.group.slug}/': 200,
+            f'/profile/{self.user.username}/': 200,
+            f'/posts/{self.post.pk}/': 200,
+            f'/posts/{self.post.pk}/edit/': 302,
             '/create/': 302,
             '/unexisting_page/': 404,
         }
@@ -55,13 +56,15 @@ class StaticURLTests(TestCase):
                 self.assertEqual(response.status_code, status)
 
     def redirect_correct_adress(self):
-        response = self.guest_client.get('/posts/1/edit/', follow=True)
-        if self.guest_client != Post.author:
+        response = self.guest_client.get(
+            f'/posts/{self.post.pk}/edit/', follow=True
+        )
+        if self.user != self.post.author:
             self.assertRedirects(
-                response, ('/auth/login/?next=/posts/1/')
+                response, (f'/auth/login/?next=/posts/{self.post.pk}/')
             )
         self.assertRedirects(
-            response, ('/auth/login/?next=/posts/1/edit/')
+            response, (f'/auth/login/?next=/posts/{self.post.pk}/edit/')
         )
         response = self.guest_client.get('/create/', follow=True)
         self.assertRedirects(
@@ -71,10 +74,10 @@ class StaticURLTests(TestCase):
     def test_urls_uses_correct_template(self):
         url_names_templates = {
             '/': 'posts/index.html',
-            '/group/tesg/': 'posts/group_list.html',
-            '/profile/Albus/': 'posts/profile.html',
-            '/posts/1/': 'posts/post_detail.html',
-            '/posts/1/edit/': 'posts/create_post.html',
+            f'/group/{self.group.slug}/': 'posts/group_list.html',
+            f'/profile/{self.user.username}/': 'posts/profile.html',
+            f'/posts/{self.post.pk}/': 'posts/post_detail.html',
+            f'/posts/{self.post.pk}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
         }
         for adress, template in url_names_templates.items():

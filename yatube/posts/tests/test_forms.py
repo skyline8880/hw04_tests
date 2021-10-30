@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..forms import PostForm
 from ..models import Group, Post
 
 User = get_user_model()
@@ -20,15 +19,16 @@ class PostCreateFormTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='Albus')
-        cls.posts_count = Post.objects.count()
         cls.group = Group.objects.create(
+            title='Тест-группа',
             slug='tesg'
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовый текст'
+            text='Тестовый текст',
+            group=cls.group
         )
-        cls.form = PostForm()
+        cls.posts_count = Post.objects.count()
 
     @classmethod
     def tearDownClass(cls):
@@ -41,34 +41,49 @@ class PostCreateFormTests(TestCase):
 
     def test_create_post(self):
         form_data = {
-            'text': self.post.text,
-            'group': self.group.slug or None
+            'text': 'Новая запись',
+            'group': self.group
         }
-        for field, value in form_data.items():
-            with self.subTest(field=field, value=value):
-                self.authorized_client.post(
-                    reverse('posts:post_create'),
-                    data=form_data,
-                    follow=True
-                )
-                self.assertEqual(Post.objects.count(), self.posts_count + 1)
-                self.assertEqual(form_data.get(field), value)
+        post = Post.objects.create(
+            author=self.user,
+            text=form_data.get('text'),
+            group=form_data.get('group')
+        )
+        Post.objects.filter(
+            text=post.text,
+            group=post.group,
+            author=post.author,
+        ).exists()
+        with self.subTest(data=form_data):
+            self.authorized_client.post(
+                reverse('posts:post_create'),
+                data=form_data,
+                follow=True
+            )
+            self.assertEqual(form_data.get('text'), 'Новая запись')
+            self.assertEqual(form_data.get('group'), self.post.group)
+            self.assertEqual(Post.objects.count(), self.posts_count + 1)
 
     def test_edit_post(self):
-        self.posts_count = Post.objects.count()
         form_data = {
-            'text': 'Тестовый текст редактирования',
-            'group': self.group or None
+            'text': 'Новая запись2',
+            'group': self.group
         }
-        for field, value in form_data.items():
-            with self.subTest(field=field, value=value):
-                self.authorized_client.post(
-                    reverse(
-                        'posts:post_edit', kwargs={'post_id': self.post.pk}
-                    ),
-                    data=form_data,
-                    follow=True
-                )
-                self.post.refresh_from_db()
-                self.assertEqual(Post.objects.count(), self.posts_count)
-                self.assertEqual(form_data.get(field), value)
+        Post.objects.filter(
+            text=form_data.get('text'),
+            group=form_data.get('group'),
+            author=self.user
+        ).exists()
+        with self.subTest(text=self.post.text, group=self.post.group):
+            self.authorized_client.post(
+                reverse(
+                    'posts:post_edit',
+                    kwargs={'post_id': Post.objects.last().pk}
+                ),
+                data=form_data,
+                follow=True
+            )
+            self.post.refresh_from_db()
+            self.assertEqual(Post.objects.count(), self.posts_count)
+            self.assertEqual(form_data.get('text'), 'Новая запись2')
+            self.assertEqual(form_data.get('group'), self.post.group)
