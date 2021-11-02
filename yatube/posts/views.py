@@ -30,6 +30,7 @@ def group_posts(request, slug):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {
+        'post': posts,
         'group': group,
         'page_obj': page_obj,
     }
@@ -64,10 +65,7 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None
-    )
+    form = PostForm(request.POST or None)
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -84,7 +82,6 @@ def post_edit(request, post_id):
         return redirect('posts:post_detail', post_id=post.pk)
     form = PostForm(
         request.POST or None,
-        files=request.FILES or None,
         instance=post
     )
     if form.is_valid():

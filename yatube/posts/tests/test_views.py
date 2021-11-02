@@ -16,12 +16,11 @@ class PostPagesTests(TestCase):
             title='Заголовок',
             slug='tesg',
         )
-        post_list = []
-        for i in range(15):
-            post_list.append(
-                Post(author=cls.user, group=cls.group, text=f'Test {i}')
-            )
+        post_list = [
+            Post(author=cls.user, group=cls.group, text=f'Test {i}') for i in range(15)
+        ]
         Post.objects.bulk_create(post_list)
+        cls.first_post = Post.objects.first()
 
     def setUp(self):
         self.authorized_client = Client()
@@ -39,10 +38,10 @@ class PostPagesTests(TestCase):
                 'posts/profile.html', {"username": self.user}
             ],
             'posts:post_detail': [
-                'posts/post_detail.html', {"post_id": Post.objects.first().pk}
+                'posts/post_detail.html', {"post_id": self.first_post.pk}
             ],
             'posts:post_edit': [
-                'posts/create_post.html', {"post_id": Post.objects.first().pk}
+                'posts/create_post.html', {"post_id": self.first_post.pk}
             ],
             'posts:post_create': [
                 'posts/create_post.html', None
@@ -58,7 +57,7 @@ class PostPagesTests(TestCase):
     def test_index_page_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:index'))
         self.assertEqual(
-            response.context['page_obj'][0], Post.objects.first()
+            response.context['page_obj'][0], self.first_post
         )
 
     def test_group_list_page_show_correct_context(self):

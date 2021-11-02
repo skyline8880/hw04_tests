@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from ..forms import PostForm
 from ..models import Group, Post
 
 User = get_user_model()
@@ -42,48 +43,51 @@ class PostCreateFormTests(TestCase):
     def test_create_post(self):
         form_data = {
             'text': 'Новая запись',
-            'group': self.group
+            'group': self.post.group.pk,
         }
-        post = Post.objects.create(
-            author=self.user,
-            text=form_data.get('text'),
-            group=form_data.get('group')
+        self.authorized_client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True
         )
-        Post.objects.filter(
-            text=post.text,
-            group=post.group,
-            author=post.author,
-        ).exists()
-        with self.subTest(data=form_data):
-            self.authorized_client.post(
-                reverse('posts:post_create'),
-                data=form_data,
-                follow=True
-            )
-            self.assertEqual(form_data.get('text'), 'Новая запись')
-            self.assertEqual(form_data.get('group'), self.post.group)
-            self.assertEqual(Post.objects.count(), self.posts_count + 1)
+        self.assertTrue(Post.objects.filter(
+            text=form_data.get('text'),
+            group=form_data.get('group'),
+            author=self.user
+        ).exists())
+        self.assertEqual(Post.objects.count(), self.posts_count + 1)
+        self.assertEqual(Post.objects.first().text, form_data.get('text'))
+        self.assertEqual(
+            Post.objects.first().group.pk, form_data.get('group')
+        )
+        self.assertEqual(
+            Post.objects.first().pk, Post.objects.order_by('-id')[0].pk
+        )
 
     def test_edit_post(self):
         form_data = {
             'text': 'Новая запись2',
-            'group': self.group
+            'group': self.post.group.pk,
         }
-        Post.objects.filter(
+        self.authorized_client.post(
+            reverse(
+                'posts:post_edit',
+                kwargs={'post_id': Post.objects.last().pk}
+            ),
+            data=form_data,
+            follow=True
+        )
+        self.assertTrue(Post.objects.filter(
             text=form_data.get('text'),
             group=form_data.get('group'),
             author=self.user
-        ).exists()
-        with self.subTest(text=self.post.text, group=self.post.group):
-            self.authorized_client.post(
-                reverse(
-                    'posts:post_edit',
-                    kwargs={'post_id': Post.objects.last().pk}
-                ),
-                data=form_data,
-                follow=True
-            )
-            self.post.refresh_from_db()
-            self.assertEqual(Post.objects.count(), self.posts_count)
-            self.assertEqual(form_data.get('text'), 'Новая запись2')
-            self.assertEqual(form_data.get('group'), self.post.group)
+        ).exists())
+        self.post.refresh_from_db()
+        self.assertEqual(Post.objects.count(), self.posts_count)
+        self.assertEqual(Post.objects.first().text, form_data.get('text'))
+        self.assertEqual(
+            Post.objects.first().group.pk, form_data.get('group')
+        )
+        self.assertEqual(
+            Post.objects.first().pk, Post.objects.order_by('-id')[0].pk
+        )

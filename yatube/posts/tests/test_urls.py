@@ -11,6 +11,7 @@ class StaticURLTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='Albus')
+        cls.us02 = User.objects.create_user(username='Severus')
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый текст',
@@ -24,6 +25,8 @@ class StaticURLTests(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.authorized_client2 = Client()
+        self.authorized_client2.force_login(self.us02)
 
     def auth_user_url_correct_status(self):
         url_adress_status = {
@@ -56,15 +59,11 @@ class StaticURLTests(TestCase):
                 self.assertEqual(response.status_code, status)
 
     def redirect_correct_adress(self):
-        response = self.guest_client.get(
+        response = self.authorized_client2.get(
             f'/posts/{self.post.pk}/edit/', follow=True
         )
-        if self.user != self.post.author:
-            self.assertRedirects(
-                response, (f'/auth/login/?next=/posts/{self.post.pk}/')
-            )
         self.assertRedirects(
-            response, (f'/auth/login/?next=/posts/{self.post.pk}/edit/')
+            response, (f'/auth/login/?next=/posts/{self.post.pk}/')
         )
         response = self.guest_client.get('/create/', follow=True)
         self.assertRedirects(
