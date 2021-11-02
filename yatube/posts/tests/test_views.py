@@ -17,7 +17,10 @@ class PostPagesTests(TestCase):
             slug='tesg',
         )
         post_list = [
-            Post(author=cls.user, group=cls.group, text=f'Test {i}') for i in range(15)
+            Post(
+                author=cls.user,
+                group=cls.group,
+                text=f'Test {i}') for i in range(15)
         ]
         Post.objects.bulk_create(post_list)
         cls.first_post = Post.objects.first()

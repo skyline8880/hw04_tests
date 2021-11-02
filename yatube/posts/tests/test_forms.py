@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..forms import PostForm
 from ..models import Group, Post
 
 User = get_user_model()
@@ -30,6 +29,7 @@ class PostCreateFormTests(TestCase):
             group=cls.group
         )
         cls.posts_count = Post.objects.count()
+        cls.first_post = Post.objects.first().pk
 
     @classmethod
     def tearDownClass(cls):
@@ -56,13 +56,7 @@ class PostCreateFormTests(TestCase):
             author=self.user
         ).exists())
         self.assertEqual(Post.objects.count(), self.posts_count + 1)
-        self.assertEqual(Post.objects.first().text, form_data.get('text'))
-        self.assertEqual(
-            Post.objects.first().group.pk, form_data.get('group')
-        )
-        self.assertEqual(
-            Post.objects.first().pk, Post.objects.order_by('-id')[0].pk
-        )
+        self.assertEqual(Post.objects.first().pk, self.first_post + 1)
 
     def test_edit_post(self):
         form_data = {
@@ -72,7 +66,7 @@ class PostCreateFormTests(TestCase):
         self.authorized_client.post(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': Post.objects.last().pk}
+                kwargs={'post_id': self.first_post}
             ),
             data=form_data,
             follow=True
@@ -84,10 +78,4 @@ class PostCreateFormTests(TestCase):
         ).exists())
         self.post.refresh_from_db()
         self.assertEqual(Post.objects.count(), self.posts_count)
-        self.assertEqual(Post.objects.first().text, form_data.get('text'))
-        self.assertEqual(
-            Post.objects.first().group.pk, form_data.get('group')
-        )
-        self.assertEqual(
-            Post.objects.first().pk, Post.objects.order_by('-id')[0].pk
-        )
+        self.assertEqual(Post.objects.first().pk, self.first_post)
