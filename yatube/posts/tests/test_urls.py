@@ -28,7 +28,7 @@ class StaticURLTests(TestCase):
         self.authorized_client2 = Client()
         self.authorized_client2.force_login(self.us02)
 
-    def auth_user_url_correct_status(self):
+    def test_auth_user_url_correct_status(self):
         url_adress_status = {
             '/': 200,
             f'/group/{self.group.slug}/': 200,
@@ -43,7 +43,7 @@ class StaticURLTests(TestCase):
                 response = self.authorized_client.get(adress)
                 self.assertEqual(response.status_code, status)
 
-    def guest_user_url_correct_status(self):
+    def test_guest_user_url_correct_status(self):
         url_adress_status = {
             '/': 200,
             f'/group/{self.group.slug}/': 200,
@@ -58,12 +58,12 @@ class StaticURLTests(TestCase):
                 response = self.guest_client.get(adress)
                 self.assertEqual(response.status_code, status)
 
-    def redirect_correct_adress(self):
+    def test_redirect_correct_adress(self):
         response = self.authorized_client2.get(
             f'/posts/{self.post.pk}/edit/', follow=True
         )
         self.assertRedirects(
-            response, (f'/auth/login/?next=/posts/{self.post.pk}/')
+            response, (f'/posts/{self.post.pk}/')
         )
         response = self.guest_client.get('/create/', follow=True)
         self.assertRedirects(
